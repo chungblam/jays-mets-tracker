@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Jays Win / Mets Lose Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --jays-blue: #003DA5;
+    --jays-red: #E8291C;
+    --mets-blue: #002D72;
+    --mets-orange: #FF5910;
+    --win: #16a34a;
+    --loss: #dc2626;
+    --neutral: #6b7280;
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: rgba(255,255,255,0.08);
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: -40%;
+    left: -20%;
+    width: 70%;
+    height: 70%;
+    background: radial-gradient(ellipse, rgba(0,61,165,0.18) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -40%;
+    right: -20%;
+    width: 70%;
+    height: 70%;
+    background: radial-gradient(ellipse, rgba(232,41,28,0.12) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    width: 100%;
+    max-width: 640px;
+    position: relative;
+    z-index: 1;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(36px, 8vw, 58px);
+    letter-spacing: 0.04em;
+    line-height: 1;
+    background: linear-gradient(135deg, #4a90e2 0%, #f1f5f9 50%, #ff6b35 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    color: var(--muted);
+    margin-top: 8px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .api-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .api-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .api-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .api-row input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .api-row input:focus { border-color: rgba(74,144,226,0.5); }
+  .api-row input::placeholder { color: var(--muted); }
+
+  .save-btn {
+    background: rgba(74,144,226,0.15);
+    border: 1px solid rgba(74,144,226,0.3);
+    border-radius: 10px;
+    color: #4a90e2;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 10px 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .save-btn:hover { background: rgba(74,144,226,0.25); }
+
+  .cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 1.5rem;
+  }
+
+  .team-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.25rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.4s;
+  }
+
+  .team-card.jays { --accent: var(--jays-blue); }
+  .team-card.mets { --accent: var(--mets-orange); }
+
+  .team-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--accent);
+    opacity: 0.6;
+  }
+
+  .team-card.win-glow { border-color: rgba(22,163,74,0.4); box-shadow: 0 0 30px rgba(22,163,74,0.1); }
+  .team-card.loss-glow { border-color: rgba(220,38,38,0.4); box-shadow: 0 0 30px rgba(220,38,38,0.1); }
+
+  .team-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .team-score {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 48px;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .team-opponent {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    min-height: 16px;
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 6px;
+    margin-top: 10px;
+  }
+
+  .badge-win { background: rgba(22,163,74,0.15); color: #4ade80; border: 1px solid rgba(22,163,74,0.3); }
+  .badge-loss { background: rgba(220,38,38,0.15); color: #f87171; border: 1px solid rgba(220,38,38,0.3); }
+  .badge-neutral { background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid var(--border); }
+
+  .check-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--jays-blue), #1a56c4);
+    border: none;
+    border-radius: 14px;
+    color: #fff;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 1rem;
+  }
+
+  .check-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .check-btn:active { transform: translateY(0); }
+  .check-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .updated {
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+  }
+
+  .celebration {
+    background: var(--surface);
+    border: 1px solid rgba(232,41,28,0.3);
+    border-radius: 16px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(232,41,28,0.1);
+    display: none;
+  }
+
+  .celebration.show { display: block; }
+
+  .celebration h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    letter-spacing: 0.06em;
+    color: var(--jays-red);
+    margin-bottom: 6px;
+  }
+
+  .celebration p {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 1rem;
+  }
+
+  .gif-wrap {
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--surface2);
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .gif-wrap img {
+    width: 100%;
+    max-width: 480px;
+    display: block;
+    border-radius: 12px;
+  }
+
+  .next-gif-btn {
+    margin-top: 12px;
+    background: rgba(232,41,28,0.12);
+    border: 1px solid rgba(232,41,28,0.3);
+    border-radius: 10px;
+    color: #f87171;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .next-gif-btn:hover { background: rgba(232,41,28,0.22); }
+
+  .info-msg {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.25rem;
+    text-align: center;
+    font-size: 14px;
+    color: var(--muted);
+    display: none;
+  }
+
+  .info-msg.show { display: block; }
+
+  .spinner {
+    display: inline-block;
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  footer {
+    margin-top: 2.5rem;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    opacity: 0.6;
+  }
+
+  @media (max-width: 420px) {
+    .cards { grid-template-columns: 1fr; }
+    .team-score { font-size: 40px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <header>
+    <div class="logo">Jays Win · Mets Lose</div>
+    <p class="subtitle">The only scoreboard that matters</p>
+  </header>
+
+  <div class="api-section">
+    <div class="api-label">Anthropic API Key</div>
+    <div class="api-row">
+      <input type="password" id="api-key" placeholder="sk-ant-..." />
+      <button class="save-btn" onclick="saveKey()">Save</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px;">
+      Get your key at <a href="https://console.anthropic.com" target="_blank" style="color:#4a90e2;">console.anthropic.com</a>. Stored only in your browser's localStorage.
+    </p>
+  </div>
+
+  <div class="cards">
+    <div class="team-card jays" id="jays-card">
+      <div class="team-label">Toronto Blue Jays</div>
+      <div class="team-score" id="jays-score">—</div>
+      <div class="team-opponent" id="jays-opp"></div>
+      <span class="badge badge-neutral" id="jays-badge">No data</span>
+    </div>
+    <div class="team-card mets" id="mets-card">
+      <div class="team-label">New York Mets</div>
+      <div class="team-score" id="mets-score">—</div>
+      <div class="team-opponent" id="mets-opp"></div>
+      <span class="badge badge-neutral" id="mets-badge">No data</span>
+    </div>
+  </div>
+
+  <button class="check-btn" id="check-btn" onclick="checkScores()">Check Today's Scores</button>
+  <p class="updated" id="updated"></p>
+
+  <div class="celebration" id="celebration">
+    <h2>🎉 Jays Win! Mets Lose! 🎉</h2>
+    <p>Time to send this to every Mets fan you know...</p>
+    <div class="gif-wrap" id="gif-wrap">
+      <div class="spinner"></div>
+    </div>
+    <button class="next-gif-btn" onclick="loadGif()">Load another gif</button>
+  </div>
+
+  <div class="info-msg" id="info-msg"></div>
+
+  <footer>Scores powered by Claude AI + web search &nbsp;·&nbsp; Gifs via Tenor</footer>
+</div>
+
+<script>
+const TENOR_KEY = "AIzaSyB8bQWdHsBBbnKT5pOBe9SZe2ADKJBanG0";
+const GIF_QUERIES = [
+  "mets losing sad baseball fan",
+  "new york mets crying",
+  "baseball fan sad crying",
+  "mets collapse baseball",
+  "sad sports fan crying"
+];
+
+let loading = false;
+
+function saveKey() {
+  const val = document.getElementById('api-key').value.trim();
+  if (val) {
+    localStorage.setItem('anthropic_key', val);
+    document.getElementById('api-key').value = val;
+    alert('API key saved!');
+  }
+}
+
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('anthropic_key');
+  if (saved) document.getElementById('api-key').value = saved;
+});
+
+function getKey() {
+  return document.getElementById('api-key').value.trim() || localStorage.getItem('anthropic_key') || '';
+}
+
+async function loadGif() {
+  const wrap = document.getElementById('gif-wrap');
+  wrap.innerHTML = '<div class="spinner"></div>';
+  const q = GIF_QUERIES[Math.floor(Math.random() * GIF_QUERIES.length)];
+  try {
+    const url = `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=${TENOR_KEY}&limit=10&media_filter=gif`;
+    const r = await fetch(url);
+    const data = await r.json();
+    if (data.results && data.results.length) {
+      const pick = data.results[Math.floor(Math.random() * Math.min(8, data.results.length))];
+      const gifUrl = pick.media_formats?.gif?.url || pick.media_formats?.tinygif?.url;
+      if (gifUrl) {
+        wrap.innerHTML = `<img src="${gifUrl}" alt="Sad Mets fan" />`;
+        return;
+      }
+    }
+    wrap.innerHTML = '<p style="padding:1rem;color:#94a3b8;font-size:13px;">Couldn\'t load gif — but the pain is real.</p>';
+  } catch {
+    wrap.innerHTML = '<p style="padding:1rem;color:#94a3b8;font-size:13px;">Gif failed to load. Mets fans are too sad even for the internet.</p>';
+  }
+}
+
+function setCard(team, data) {
+  const scoreEl = document.getElementById(`${team}-score`);
+  const oppEl = document.getElementById(`${team}-opp`);
+  const badgeEl = document.getElementById(`${team}-badge`);
+  const card = document.getElementById(`${team}-card`);
+
+  card.classList.remove('win-glow', 'loss-glow');
+
+  if (data.played && data.score) {
+    scoreEl.textContent = data.score;
+    oppEl.textContent = (data.opponent || '') + (data.status ? ` · ${data.status}` : '');
+    if (data.won === true) {
+      badgeEl.textContent = 'Win';
+      badgeEl.className = 'badge badge-win';
+      card.classList.add('win-glow');
+    } else if (data.won === false) {
+      badgeEl.textContent = 'Loss';
+      badgeEl.className = 'badge badge-loss';
+      card.classList.add('loss-glow');
+    } else {
+      badgeEl.textContent = data.status || 'In progress';
+      badgeEl.className = 'badge badge-neutral';
+    }
+  } else {
+    scoreEl.textContent = '—';
+    oppEl.textContent = '';
+    badgeEl.textContent = 'No game today';
+    badgeEl.className = 'badge badge-neutral';
+  }
+}
+
+async function checkScores() {
+  const key = getKey();
+  if (!key) {
+    alert('Please enter your Anthropic API key above.');
+    return;
+  }
+  if (loading) return;
+  loading = true;
+
+  const btn = document.getElementById('check-btn');
+  btn.innerHTML = '<span class="spinner"></span> Checking scores...';
+  btn.disabled = true;
+
+  document.getElementById('celebration').classList.remove('show');
+  document.getElementById('info-msg').classList.remove('show');
+
+  try {
+    const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        system: `You are a baseball score reporter. Today is ${today}. Use web search to find today's MLB scores for the New York Mets and Toronto Blue Jays. Return ONLY valid JSON (no markdown, no backticks, no extra text) in this exact format:
+{"jays":{"played":true,"won":true,"score":"4-2","opponent":"vs Boston","status":"Final"},"mets":{"played":true,"won":false,"score":"1-5","opponent":"vs Phillies","status":"Final"},"both_trigger":true}
+"both_trigger" is true only when Jays won AND Mets lost in completed or live games today. Use null for unknown won values.`,
+        messages: [{ role: 'user', content: 'What are the MLB scores today for the New York Mets and Toronto Blue Jays? Return only JSON.' }]
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    let rawText = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+    const match = rawText.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('No JSON in response');
+    const scores = JSON.parse(match[0]);
+
+    setCard('jays', scores.jays);
+    setCard('mets', scores.mets);
+
+    const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('updated').textContent = `Last checked: ${now}`;
+
+    const cel = document.getElementById('celebration');
+    const info = document.getElementById('info-msg');
+
+    if (scores.both_trigger) {
+      cel.classList.add('show');
+      loadGif();
+    } else if (scores.jays.won === true && scores.mets.won !== false) {
+      info.textContent = '✅ Jays won today — still waiting on the Mets to do their thing...';
+      info.classList.add('show');
+    } else if (scores.mets.won === false && scores.jays.won !== true) {
+      info.textContent = '⚾ Mets lost today — just need the Jays to seal the deal!';
+      info.classList.add('show');
+    } else if (!scores.jays.played && !scores.mets.played) {
+      info.textContent = 'No games today for either team. Check back later!';
+      info.classList.add('show');
+    }
+
+  } catch (e) {
+    document.getElementById('updated').textContent = 'Error: ' + e.message;
+  }
+
+  btn.innerHTML = 'Check Today\'s Scores';
+  btn.disabled = false;
+  loading = false;
+}
+</script>
+</body>
+</html>
